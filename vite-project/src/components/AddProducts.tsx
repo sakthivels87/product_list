@@ -1,57 +1,77 @@
-import { useRef } from "react";
 import departments from "../departments";
-import { Product } from "./ProductsList";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
+const schema = z.object({
+  name: z.string().min(2, { message: "Name is required." }).max(60),
+  amount: z
+    .number({ invalid_type_error: "Amount is required." })
+    .min(0.1)
+    .max(100_000),
+  department: z.enum(departments, {
+    errorMap: (e) => ({
+      message: "Select valid department",
+    }),
+  }),
+});
+
+type ProductFormData = z.infer<typeof schema>;
 interface Props {
-  onAddProduct: (p: any) => void; // Product object passing. Since id of the product not available am using any.
+  onAddProduct: (p: ProductFormData) => void; // Product object passing. Since id of the product not available am using any.
 }
 const AddProducts = ({ onAddProduct }: Props) => {
-  const nameRef = useRef<HTMLInputElement>(null);
-  const amountRef = useRef<HTMLInputElement>(null);
-  const deptRef = useRef<HTMLSelectElement>(null);
+  const {
+    register,
+    reset,
+    handleSubmit,
+    formState: { errors, isValid, isLoading },
+  } = useForm<ProductFormData>({ resolver: zodResolver(schema) });
 
+  if (isLoading) return <p>Loading...</p>;
   return (
     <form
       className="form mb-5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        var _data = {
-          name: "",
-          amount: 0,
-          department: "",
-        };
-        if (nameRef.current) _data.name = nameRef.current.value;
-        if (amountRef.current) _data.amount = parseInt(amountRef.current.value);
-        if (deptRef.current) _data.department = deptRef.current.value;
-
-        onAddProduct(_data);
-        nameRef.current!.value = "";
-        amountRef.current!.value = "";
-        deptRef.current!.value = "";
-      }}
+      onSubmit={handleSubmit((data) => {
+        onAddProduct(data);
+        reset();
+      })}
     >
       <div className="mb-2">
         <label className="form-label" htmlFor="name">
           Product Name
         </label>
-        <input ref={nameRef} type="text" className="form-control" id="name" />
+        <input
+          {...register("name", { required: true })}
+          type="text"
+          className="form-control"
+          id="name"
+        />
+        {errors.name && <p className="text-danger">{errors.name.message}</p>}
       </div>
       <div className="mb-2">
         <label className="form-label" htmlFor="amount">
           Amount
         </label>
         <input
-          ref={amountRef}
+          {...register("amount", { valueAsNumber: true })}
           type="number"
           className="form-control"
           id="amount"
         />
+        {errors.amount && (
+          <p className="text-danger">{errors.amount.message}</p>
+        )}
       </div>
       <div className="mb-2">
         <label htmlFor="department" className="form-label">
           Department
         </label>
-        <select ref={deptRef} id="department" className="form-select">
+        <select
+          {...register("department")}
+          id="department"
+          className="form-select"
+        >
           <option value="">Select Department</option>
           {departments.map((d) => (
             <option key={d} value={d}>
@@ -59,9 +79,12 @@ const AddProducts = ({ onAddProduct }: Props) => {
             </option>
           ))}
         </select>
+        {errors.department && (
+          <p className="text-danger">{errors.department.message}</p>
+        )}
       </div>
       <div className="d-grid gap-2 d-md-flex justify-content-md-end">
-        <button type="submit" className="btn btn-primary">
+        <button disabled={!isValid} type="submit" className="btn btn-primary">
           Submit
         </button>
       </div>
